@@ -1,7 +1,22 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import login
 from .models import PostagemMural
 from .forms import PostagemForm
+from django.contrib import messages
+
+def cadastro(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user) # Autentica o usuário automaticamente após se cadastrar
+            messages.success(request, '🎉 Conta criada com sucesso! Bem-vindo ao School Feed.')
+            return redirect('mural_lista')
+    else:
+        form = UserCreationForm()
+    return render(request, 'registration/cadastro.html', {'form': form})
 
 def index_publico(request):
     # Recupera todos os cartões abertos no mural ordenados por data
@@ -21,6 +36,7 @@ def criar_post(request):
             post = form.save(commit=False)
             post.autor = request.user
             post.save()
+            messages.success(request, '✨ Card criado e publicado com sucesso!')
             return redirect('mural_lista')
     else:
         form = PostagemForm()
@@ -37,6 +53,7 @@ def editar_post(request, pk):
         form = PostagemForm(request.POST, instance=post)
         if form.is_valid():
             form.save()
+            messages.success(request, '✏️ Card atualizado com sucesso!')
             return redirect('mural_lista')
     else:
         form = PostagemForm(instance=post)
@@ -45,3 +62,11 @@ def editar_post(request, pk):
         'titulo_pagina': 'Editar Card',
         'is_edit': True
     })
+
+@login_required
+def deletar_post(request, pk):
+    post = get_object_or_404(PostagemMural, pk=pk, autor=request.user)
+    if request.method == 'POST':
+        post.delete()
+        messages.success(request, '🗑️ Card excluído com sucesso!')
+    return redirect('mural_lista')

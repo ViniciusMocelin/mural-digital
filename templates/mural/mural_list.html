@@ -1,6 +1,31 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<!-- Container do Pop-up Temporário (Toast de Notificação) -->
+{% if messages %}
+<div id="toastContainer" style="position: fixed; top: 25px; right: 25px; z-index: 10000; display: flex; flex-direction: column; gap: 10px;">
+    {% for message in messages %}
+        <div class="toast-card" style="background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(16, 185, 129, 0.4); border-left: 5px solid #10b981; padding: 16px 22px; border-radius: 12px; color: var(--text-light); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(16, 185, 129, 0.2); min-width: 300px; display: flex; align-items: center; justify-content: space-between; gap: 15px; animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 0.95rem; font-weight: 600;">{{ message }}</span>
+            </div>
+            <button onclick="fecharToast(this.parentElement)" style="background: none; border: none; color: var(--text-muted); font-size: 1.1rem; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+        </div>
+    {% endfor %}
+</div>
+
+<style>
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes fadeOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+</style>
+{% endif %}
+
 <div style="margin-bottom: 30px;">
     <h1 class="gradient-text" style="font-size: 2rem; font-weight: 800; margin: 0 0 5px 0;">Meu Painel de Controle</h1>
     <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">Gerencie as suas postagens e edite o conteúdo publicado.</p>
@@ -25,10 +50,15 @@
                         <span style="color: var(--text-muted); font-size: 0.85rem;">{{ post.get_cor_fundo_display }}</span>
                     </td>
                     <td style="padding: 15px; color: var(--text-muted);">{{ post.data_criacao|date:"d/m/Y H:i" }}</td>
-                    <td style="padding: 15px; text-align: right;">
-                        <a href="{% url 'editar_post' post.pk %}" class="btn-gradient" style="padding: 6px 14px; font-size: 0.75rem; text-decoration: none;">
+                    <td style="padding: 15px; text-align: right; white-space: nowrap;">
+                        <a href="{% url 'editar_post' post.pk %}" class="btn-gradient" style="padding: 6px 14px; font-size: 0.75rem; text-decoration: none; display: inline-block; margin-right: 6px;">
                             ✏️ Editar
                         </a>
+                        
+                        <!-- Botão acionador do Pop-up -->
+                        <button type="button" onclick="abrirModalDeletar('{{ post.pk }}', '{{ post.titulo|escapejs }}')" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+                            🗑️ Deletar
+                        </button>
                     </td>
                 </tr>
             {% empty %}
@@ -41,4 +71,71 @@
         </tbody>
     </table>
 </div>
+
+<!-- Modal Pop-up de Confirmação de Exclusão -->
+<div id="modalDeletar" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(8, 13, 26, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 9999; justify-content: center; align-items: center;">
+    <div class="glass-card" style="width: 90%; max-width: 440px; padding: 30px; text-align: center; border: 1px solid rgba(239, 68, 68, 0.4); box-shadow: 0 0 30px rgba(239, 68, 68, 0.25);">
+        <div style="font-size: 3rem; margin-bottom: 10px;">⚠️</div>
+        <h3 style="color: var(--text-light); margin: 0 0 10px 0; font-size: 1.3rem; font-weight: 800;">Confirmar Exclusão</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 25px; line-height: 1.5;">
+            Tem certeza que deseja excluir o card <strong id="tituloCardDeletar" style="color: #f87171;"></strong>? Esta ação não poderá ser desfeita.
+        </p>
+        
+        <form id="formDeletar" method="post" action="">
+            {% csrf_token %}
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button type="button" onclick="fecharModalDeletar()" class="glass-card" style="padding: 10px 20px; color: var(--text-muted); font-weight: 600; cursor: pointer; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.05);">
+                    Cancelar
+                </button>
+                <button type="submit" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; padding: 10px 22px; border-radius: 10px; font-weight: 700; cursor: pointer; box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);">
+                    🗑️ Sim, Deletar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Controle do Pop-up de Confirmação de Deleção
+    function abrirModalDeletar(id, titulo) {
+        const modal = document.getElementById('modalDeletar');
+        const form = document.getElementById('formDeletar');
+        const tituloSpan = document.getElementById('tituloCardDeletar');
+
+        form.action = `/deletar/${id}/`;
+        tituloSpan.textContent = `"${titulo}"`;
+        
+        modal.style.display = 'flex';
+    }
+
+    function fecharModalDeletar() {
+        document.getElementById('modalDeletar').style.display = 'none';
+    }
+
+    window.onclick = function(event) {
+        const modal = document.getElementById('modalDeletar');
+        if (event.target === modal) {
+            fecharModalDeletar();
+        }
+    }
+
+    // Auto-dismiss dos Toasts de Sucesso após 4 segundos
+    function fecharToast(element) {
+        element.style.animation = 'fadeOut 0.3s forwards';
+        setTimeout(() => {
+            element.remove();
+        }, 300);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const toasts = document.querySelectorAll('.toast-card');
+        toasts.forEach(toast => {
+            setTimeout(() => {
+                if (toast && toast.parentElement) {
+                    fecharToast(toast);
+                }
+            }, 4000); // 4 segundos na tela
+        });
+    });
+</script>
 {% endblock %}

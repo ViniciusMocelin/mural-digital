@@ -113,7 +113,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # Redirecionamentos de Autenticação (Login/Logout)
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'dashboard'
+LOGIN_REDIRECT_URL = 'mural_lista'
 LOGOUT_REDIRECT_URL = 'login'
 
 
